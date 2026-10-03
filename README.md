@@ -1,71 +1,274 @@
-# HVH — Đề tài 9: Ngữ liệu đơn ngữ chữ Hán (lịch sử VN)
+# Han-Nom OCR & NLP Pipeline
 
-Đồ án giữa kỳ NLP. Đầu vào là **ảnh** chữ Hán → pipeline: **OCR → Tách câu → NER**.
-Phạm vi: 17 tác phẩm `HVH_246` → `HVH_262` (≈ 2180 trang), nguồn [Nôm Foundation](https://lib.nomfoundation.org).
+End-to-end pipeline for processing historical Han-character documents from Vietnamese collections, covering image preprocessing, OCR, classical Chinese sentence segmentation, and named entity recognition.
 
-Xem kế hoạch chi tiết & lựa chọn model ở **[KE_HOACH_HVH.md](KE_HOACH_HVH.md)**.
+The project is designed for vertically written historical documents, where text is commonly read from right to left. It combines local OCR and NLP models with an optional LLM-based NER stage.
 
-> **Lưu ý dữ liệu:** ảnh gốc là nội dung bản quyền của [Nôm Foundation](https://lib.nomfoundation.org)
-> nên **KHÔNG kèm trong repo** (đã loại qua `.gitignore`). Chạy `notebooks/00_download_data.ipynb`
-> để tự tải về `data/raw_images/`. Repo chỉ chứa **mã nguồn + kế hoạch**.
+## Pipeline
 
-## Môi trường (dùng conda)
-
-```bash
-conda env create -f environment.yml     # tạo env "hvh" (Python 3.11)
-conda activate hvh
-# hoặc:  conda create -n hvh python=3.11 -y && conda activate hvh && pip install -r requirements.txt
+```text
+Historical scanned pages
+        ↓
+Image preprocessing
+        ↓
+PaddleOCR
+        ↓
+Reading-order reconstruction
+        ↓
+Classical Chinese sentence segmentation
+        ↓
+Named entity recognition
+        ↓
+Structured corpus outputs
 ```
 
-> **PaddleOCR 3.x trên CPU:** module `src/paddle_ocr.py` đã set `enable_mkldnn=False` để tránh lỗi oneDNN
-> (đã kiểm chứng trên Windows + Python 3.13 + paddlepaddle 3.3). Lần chạy đầu tự tải model (~vài chục MB).
+## What is implemented
 
-## Cấu trúc thư mục
+- **Image preprocessing:** grayscale conversion, CLAHE contrast enhancement, denoising, deskewing, and optional adaptive binarization with OpenCV.
+- **OCR:** PaddleOCR with the Traditional Chinese model (`chinese_cht`).
+- **Vertical reading order:** OCR regions are reordered from right to left and then top to bottom to better match historical Han-character documents.
+- **Sentence segmentation:** local punctuation restoration using `raynardj/classical-chinese-punctuation-guwen-biaodian`.
+- **NER:** Gemini-based few-shot extraction for `PER`, `LOC`, `ORG`, `TITLE`, `TME`, `NUM`, and `DYNASTY`.
+- **Validation helpers:** generated entities are retained only when their text appears verbatim in the source sentence.
+- **Reusable OCR module:** shared PaddleOCR logic is implemented in `src/paddle_ocr.py`.
+- **OCR smoke testing:** `scripts/test_ocr.py` provides a lightweight way to inspect recognition quality before full processing.
 
-```
-midterm/
-├── requirements.txt / environment.yml   # môi trường
-├── KE_HOACH_HVH.md                       # kế hoạch + 3 model/bước để khảo sát
+## Project scope
+
+The project was developed for a historical Han-character corpus covering 17 works, with an expected total of approximately 2,180 pages.
+
+A working collection of 2,099 scanned pages across 33 source-volume folders was used during development. The original scans are not redistributed in this repository.
+
+## OCR pilot results
+
+A pilot OCR run was performed on 66 page images, using two pages from each of the 33 collected source folders.
+
+| Metric | Result |
+| --- | ---: |
+| Pilot images | 66 |
+| Source folders covered | 33 / 33 |
+| Mean PaddleOCR confidence | 0.705 |
+| Minimum confidence | 0.33 |
+| Maximum confidence | 0.98 |
+| Images below 0.75 confidence | 41 / 66 |
+| Approx. characters per image | 240 |
+
+`0.705` is the mean OCR model confidence reported by PaddleOCR. It is **not** a character-accuracy or CER score. A manually annotated gold set would be required for a proper OCR accuracy evaluation.
+
+The pilot also showed that regular text pages were generally easier to recognize than title pages or decorative pages.
+
+## Repository structure
+
+```text
+HanNom-OCR-NLP/
+├── README.md
+├── HanNom_OCR_NLP_Report.pdf
+├── environment.yml
+├── requirements.txt
 ├── notebooks/
-│   ├── 00_download_data.ipynb   # tải ảnh gốc (Nôm Foundation)
-│   ├── 01_preprocess.ipynb      # tiền xử lý ảnh — OpenCV (free)
-│   ├── 02_ocr.ipynb             # OCR chữ Hán — PaddleOCR (free, local)
-│   ├── 03_segment.ipynb         # tách câu / đoạn cú — guwen BERT (free) / Gemini
-│   └── 04_ner.ipynb             # NER — Gemini free tier few-shot
+│   ├── 01_preprocess.ipynb
+│   ├── 02_ocr.ipynb
+│   ├── 03_segment.ipynb
+│   └── 04_ner.ipynb
 ├── src/
-│   └── paddle_ocr.py            # module OCR dùng chung (PaddleOCR 3.x)
-├── scripts/
-│   └── test_ocr.py             # chạy thử OCR 2 ảnh/folder
-├── data/
-│   ├── metadata/               # de_tai_9.csv, download_summary.csv
-│   ├── raw_images/
-│   │   └── downloaded_images/  # ẢNH GỐC theo <docid>/ : nlvnpf-XXXX/nlvnpf-XXXX-NNN.jpg
-│   ├── preprocessed/           # ảnh sau tiền xử lý (theo <docid>/)
-│   └── ocr_results/            # text + ảnh bbox CHUNG 1 chỗ: <docid>/<trang>.txt + <trang>_ocr_res_img.jpg
-├── outputs/                    # KẾT QUẢ: outputs/<docid>/<docid>_{raw.txt,seg.tsv,ner.json}
-├── gold_set/                   # tập vàng để đánh giá model
-└── src/
+│   └── paddle_ocr.py
+└── scripts/
+    └── test_ocr.py
 ```
 
-## Quy trình chạy
+Large source images, generated OCR artifacts, local environments, model files, and secrets are excluded from Git.
 
-1. **Tải ảnh** — `notebooks/00_download_data.ipynb` (đã có ảnh trong `data/raw_images/downloaded_images/`).
-2. **(tuỳ chọn) Tiền xử lý** — `01_preprocess.ipynb` (thường bỏ qua được với PaddleOCR).
-3. **OCR** — `02_ocr.ipynb` (PaddleOCR, free, không giới hạn số ảnh).
-4. **Tách câu** — `03_segment.ipynb`.
-5. **NER** — `04_ner.ipynb` (cần API key Gemini free).
+## Input data
 
-Các notebook auto-nhận diện mỗi thư mục con trong `downloaded_images/` là **một tác phẩm/quyển**
-(dùng tên thư mục `docid` làm định danh). Kết quả ghi vào `outputs/<docid>/`.
+The original historical scans are not included in this repository.
 
-## Lưu ý: đổi tên docid → mã HVH khi nộp
+Place source images under:
 
-Ảnh đang đặt theo **docid Nôm Foundation** (`nlvnpf-XXXX`), còn đề bài yêu cầu tên file theo
-**`[matacpham]` = `HVH_xxx`**. Trước khi nộp cần ánh xạ `docid → HVH_xxx` (một số tác phẩm gồm
-nhiều quyển → nhiều docid). Bảng ánh xạ dựa trên `data/metadata/de_tai_9.csv` + trang volume tương ứng.
+```text
+data/raw_images/downloaded_images/<work_id>/
+```
 
-## Test OCR nhanh
+before running the pipeline.
+
+## Environment
+
+The recommended environment uses Python 3.11.
+
+### Conda
 
 ```bash
-python scripts/test_ocr.py     # OCR 2 ảnh/folder -> outputs/_ocr_test_preview.md để soi chất lượng
+conda env create -f environment.yml
+conda activate hvh
 ```
+
+### pip
+
+```bash
+python -m venv .venv
+```
+
+Windows:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Linux/macOS:
+
+```bash
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+## Running the pipeline
+
+The notebooks are intended to be run in order:
+
+```text
+01_preprocess.ipynb
+        ↓
+02_ocr.ipynb
+        ↓
+03_segment.ipynb
+        ↓
+04_ner.ipynb
+```
+
+### 1. Image preprocessing
+
+`notebooks/01_preprocess.ipynb`
+
+Applies grayscale conversion, CLAHE, deskewing, denoising, and optional adaptive binarization.
+
+Processed images are written to:
+
+```text
+data/preprocessed/<work_id>/
+```
+
+Preprocessing is optional. PaddleOCR can also be run directly on the original scans.
+
+### 2. OCR
+
+`notebooks/02_ocr.ipynb`
+
+The reusable OCR implementation is in:
+
+```text
+src/paddle_ocr.py
+```
+
+The OCR configuration uses:
+
+```python
+lang="chinese_cht"
+use_textline_orientation=True
+use_doc_orientation_classify=False
+use_doc_unwarping=False
+enable_mkldnn=False
+```
+
+`enable_mkldnn=False` is used to avoid oneDNN-related issues observed with PaddlePaddle 3.x on CPU.
+
+OCR regions are sorted by x/y coordinates to reconstruct the traditional vertical reading order:
+
+```text
+right column → left column
+top → bottom within each column
+```
+
+A quick OCR smoke test is available:
+
+```bash
+python scripts/test_ocr.py
+```
+
+### 3. Sentence segmentation
+
+`notebooks/03_segment.ipynb`
+
+The default local model is:
+
+```text
+raynardj/classical-chinese-punctuation-guwen-biaodian
+```
+
+The output format is:
+
+```text
+sentence_id<TAB>sentence
+```
+
+Example:
+
+```text
+HVH_246_000001	...
+HVH_246_000002	...
+```
+
+### 4. Named entity recognition
+
+`notebooks/04_ner.ipynb`
+
+The NER stage uses Gemini few-shot prompting with the following entity schema:
+
+```text
+PER      person
+LOC      location
+ORG      organization
+TITLE    title / official position
+TME      time expression
+NUM      number
+DYNASTY  dynasty
+```
+
+API keys should be provided through environment variables and must not be stored in the repository.
+
+PowerShell:
+
+```powershell
+$env:GOOGLE_API_KEY="your-key"
+```
+
+Linux/macOS:
+
+```bash
+export GOOGLE_API_KEY="your-key"
+```
+
+Generated entity text is validated against the original sentence before it is saved.
+
+## Outputs
+
+The pipeline can produce structured outputs such as:
+
+```text
+outputs/<work_id>/
+├── <work_id>_raw.txt
+├── <work_id>_seg.tsv
+└── <work_id>_ner.json
+```
+
+Generated corpus files are not included in this repository. The repository focuses on the implementation and reproducible processing workflow.
+
+## Data and copyright
+
+The source scans used during development came from the [Nôm Foundation Digital Library](https://lib.nomfoundation.org).
+
+The original page images are third-party materials and are **not redistributed in this repository**. Anyone reproducing the project should obtain the source material directly from the original provider and follow its terms of use.
+
+## Limitations
+
+- PaddleOCR is not specifically trained for every historical woodblock-print style or rare character variant.
+- OCR confidence is not equivalent to OCR accuracy.
+- Historical documents may contain rare glyphs, damaged print, mixed layouts, or non-standard forms.
+- Sentence segmentation models trained mainly on classical Chinese corpora may not perfectly match Vietnamese historical material.
+- LLM-based NER can produce inconsistent labels and should be evaluated against manually annotated data before being treated as ground truth.
+
+## Report
+
+The project report is available at:
+
+[`HanNom_OCR_NLP_Report.pdf`](HanNom_OCR_NLP_Report.pdf)
