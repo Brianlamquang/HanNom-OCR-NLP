@@ -1,0 +1,21 @@
+# Tạo môi trường conda:  conda env create -f environment.yml
+# Kích hoạt:             conda activate hvh
+name: hvh
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - requests
+      - pandas
+      - openpyxl
+      - tqdm
+      - pillow
+      - matplotlib
+      - opencv-python
+      - paddlepaddle>=3.0
+      - paddleocr>=3.0
+      - transformers
+      - torch
+      - google-generativeai

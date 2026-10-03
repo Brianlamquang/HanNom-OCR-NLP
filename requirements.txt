@@ -1,0 +1,26 @@
+# ===== Môi trường cho pipeline HVH (Đề tài 9) =====
+# Khuyến nghị: conda create -n hvh python=3.11 -y && conda activate hvh
+#              pip install -r requirements.txt
+# (Python 3.11 ổn định nhất cho PaddlePaddle; 3.13 vẫn chạy được với paddlepaddle>=3.3)
+
+# --- Tải & tiện ích ---
+requests
+pandas
+openpyxl            # đọc file .xlsx danh sách đề tài
+tqdm
+pillow
+matplotlib
+
+# --- Xử lý ảnh (bước 01) ---
+opencv-python
+
+# --- OCR (bước 02) : PaddleOCR (free, local) ---
+paddlepaddle>=3.0    # CPU. Nếu có GPU CUDA: cài paddlepaddle-gpu theo hướng dẫn chính thức
+paddleocr>=3.0
+
+# --- Tách câu / đoạn cú (bước 03) : model Hán cổ trên HuggingFace ---
+transformers
+torch                # CPU đủ chạy model đoạn cú nhỏ
+
+# --- (Tùy chọn) NER hoặc OCR bằng Gemini free tier (bước 04) ---
+google-generativeai

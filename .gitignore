@@ -1,0 +1,58 @@
+# ============================================================
+#  DỮ LIỆU LỚN / BẢN QUYỀN — KHÔNG push lên GitHub
+# ============================================================
+# Ảnh gốc quét từ Nôm Foundation là nội dung bên thứ ba (bản quyền)
+# + các kết quả trung gian nặng. Chỉ chia sẻ qua link nguồn, không redistribute.
+data/raw_images/
+data/preprocessed/
+data/ocr/
+data/ocr_viz/
+data/ocr_results/
+
+# Giữ lại metadata nhỏ (config sinh ra), bỏ file tạm
+data/**/*.tmp
+
+# ============================================================
+#  Artifact test / preview (không phải sản phẩm cuối)
+# ============================================================
+outputs/_ocr_test_*
+
+# ============================================================
+#  Danh sách đề tài toàn lớp (thông tin nội bộ của lớp học)
+# ============================================================
+DS Đề tài KHDL.xlsx
+
+# ============================================================
+#  Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+.python-version
+
+# ============================================================
+#  Secrets — TUYỆT ĐỐI không commit khóa API
+# ============================================================
+.env
+.env.*
+*.key
+secrets.*
+
+# ============================================================
+#  Cấu hình cục bộ của Claude Code / editor
+# ============================================================
+.claude/
+.vscode/
+.idea/
+
+# ============================================================
+#  Office / OS temp
+# ============================================================
+~$*
+.DS_Store
+Thumbs.db
+desktop.ini
